@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!-- 缓存管理器 -->
+    <bean id="cacheManager" class="com.zyark.spring.SpringCacheManagerWrapper">
+        <property name="cacheManager" ref="springCacheManager"/>
+    </bean>
+
+    <!-- 凭证匹配器 -->
+    <bean id="credentialsMatcher" class="com.zyark.shiro.credentials.RetryLimitHashedCredentialsMatcher">
+        <constructor-arg ref="cacheManager"/>
+        <property name="hashAlgorithmName" value="md5"/>
+        <property name="hashIterations" value="2"/>
+        <property name="storedCredentialsHexEncoded" value="true"/>
+    </bean>
+
+    <!-- Realm实现 -->
+    <bean id="userRealm" class="com.zyark.shiro.realm.UserRealm">
+        <property name="credentialsMatcher" ref="credentialsMatcher"/>
+        <property name="cachingEnabled" value="false"/>
+        <!--<property name="authenticationCachingEnabled" value="true"/>-->
+        <!--<property name="authenticationCacheName" value="authenticationCache"/>-->
+        <!--<property name="authorizationCachingEnabled" value="true"/>-->
+        <!--<property name="authorizationCacheName" value="authorizationCache"/>-->
+    </bean>
+
+    <!-- 会话ID生成器 -->
+    <bean id="sessionIdGenerator" class="org.apache.shiro.session.mgt.eis.JavaUuidSessionIdGenerator"/>
+
+    <!-- 会话Cookie模板 -->
+    <bean id="sessionIdCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+        <constructor-arg value="sid"/>
+        <property name="httpOnly" value="true"/>
+        <property name="maxAge" value="-1"/>
+    </bean>
+
+    <bean id="rememberMeCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+        <constructor-arg value="rememberMe"/>
+        <property name="httpOnly" value="true"/>
+        <property name="maxAge" value="2592000"/><!-- 30天 -->
+    </bean>
+
+    <!-- rememberMe管理器 -->
+    <bean id="rememberMeManager" class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+        <!-- rememberMe cookie加密的密钥 建议每个项目都不一样 默认AES算法 密钥长度（128 256 512 位）-->
+        <property name="cipherKey"
+                  value="#{T(org.apache.shiro.codec.Base64).decode('4AvVhmFLUs0KTA3Kprsdag==')}"/>
+        <property name="cookie" ref="rememberMeCookie"/>
+    </bean>
+
+    <!-- 会话DAO -->
+    <!--<bean id="sessionDAO" class="org.apache.shiro.session.mgt.eis.EnterpriseCacheSessionDAO">-->
+    <!--<property name="activeSessionsCacheName" value="shiro-activeSessionCache"/>-->
+    <!--<property name="sessionIdGenerator" ref="sessionIdGenerator"/>-->
+    <!--</bean>-->
+
+    <!-- 自定义会话DAO，mysql持久化session -->
+    <!--<bean id="sessionDAO" class="com.zyfz.dao.MySimpleSessionDao">-->
+    <!--<property name="activeSessionsCacheName" value="shiro-activeSessionCache"/>-->
+    <!--<property name="sessionIdGenerator" ref="sessionIdGenerator"/>-->
+    <!--</bean>-->
+
+    <!-- 自定义会话DAO，redis持久化session,方便控制会话过期时间,集群共享会话,提高存取效率 -->
+    <!--<bean id="sessionDAO" class="com.zyark.dao.SessionRedisDao">-->
+    <!--<property name="activeSessionsCacheName" value="shiro-activeSessionCache"/>-->
+    <!--<property name="sessionIdGenerator" ref="sessionIdGenerator"/>-->
+    <!--</bean>-->
+
+    <!-- 默认会话DAO，不进行持久化 -->
+    <bean id="sessionDAO" class="org.apache.shiro.session.mgt.eis.EnterpriseCacheSessionDAO">
+        <property name="activeSessionsCacheName" value="shiro-activeSessionCache"/>
+        <property name="sessionIdGenerator" ref="sessionIdGenerator"/>
+    </bean>
+
+    <!-- 会话验证调度器 -->
+    <bean id="sessionValidationScheduler" class="org.apache.shiro.session.mgt.quartz.QuartzSessionValidationScheduler">
+        <property name="sessionValidationInterval" value="1800000"/>
+        <property name="sessionManager" ref="sessionManager"/>
+    </bean>
+
+    <!-- 会话管理器 -->
+    <bean id="sessionManager" class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+        <!--会话过期时间-->
+        <property name="globalSessionTimeout" value="1800000"/>
+        <property name="deleteInvalidSessions" value="true"/>
+        <property name="sessionValidationSchedulerEnabled" value="true"/>
+        <property name="sessionValidationScheduler" ref="sessionValidationScheduler"/>
+        <property name="sessionDAO" ref="sessionDAO"/>
+        <property name="sessionIdCookieEnabled" value="true"/>
+        <property name="sessionIdCookie" ref="sessionIdCookie"/>
+    </bean>
+
+    <!-- 安全管理器 -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="realm" ref="userRealm"/>
+        <property name="sessionManager" ref="sessionManager"/>
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="rememberMeManager" ref="rememberMeManager"/>
+    </bean>
+
+    <!-- 相当于调用SecurityUtils.setSecurityManager(securityManager) -->
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+        <property name="staticMethod" value="org.apache.shiro.SecurityUtils.setSecurityManager"/>
+        <property name="arguments" ref="securityManager"/>
+    </bean>
+
+    <!-- 基于Form表单的身份验证过滤器 -->
+    <bean id="formAuthenticationFilter" class="org.apache.shiro.web.filter.authc.FormAuthenticationFilter">
+        <property name="usernameParam" value="username"/>
+        <property name="passwordParam" value="password"/>
+        <property name="rememberMeParam" value="rememberMe"/>
+        <property name="loginUrl" value="/login"/>
+    </bean>
+
+    <!--用于根据当前登录用户身份获取User信息放入request；然后就可以通过request获取User-->
+    <bean id="sysUserFilter" class="com.zyark.web.filter.SysUserFilter"/>
+
+    <!--控制并发人数-->
+    <!--<bean id="kickoutSessionControlFilter"-->
+    <!--class="com.zyfz.web.filter.KickoutSessionControlFilter">-->
+    <!--<property name="cacheManager" ref="cacheManager"/>-->
+    <!--<property name="sessionManager" ref="sessionManager"/>-->
+    <!--<property name="kickoutAfter" value="false"/>-->
+    <!--<property name="maxSession" value="1"/>-->
+    <!--<property name="kickoutUrl" value="/login?kickout=out"/>-->
+    <!--</bean>-->
+
+    <!-- Shiro的Web过滤器 -->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <property name="loginUrl" value="/login"/>
+        <property name="filters">
+            <util:map>
+                <entry key="authc" value-ref="formAuthenticationFilter"/>
+                <entry key="sysUser" value-ref="sysUserFilter"/>
+                <!--<entry key="kickout" value-ref="kickoutSessionControlFilter"/>-->
+            </util:map>
+        </property>
+        <property name="filterChainDefinitions">
+            <value>
+                /js/** = anon
+                /css/** = anon
+                /jslib/** = anon
+                /ueditor/** = anon
+                /static/** = anon
+                /jquery-treetable/** = anon
+                /test/** = anon
+                /productImages/** = anon
+                /notify.jsp = anon
+                /signatures_url.jsp = anon
+                /api/v1/sms/** = anon
+                /api/v1/user/reg = anon
+                /api/v1/anon/** = anon
+                /login = authc
+                /logout = logout
+                /authenticated = authc
+                /favicon.ico = anon
+
+                <!--前端静态资源-->
+                /assets/** = anon
+                /images/** = anon
+                /layer/** = anon
+                /MP_verify_Cdz8k36goILAWYUS.txt = anon
+
+                /broadband/** = anon
+
+                /clientDevice/** = anon
+                /clientWeChat/** = anon
+                /clientAddress/** = anon
+                /clientHallOrder/** = anon
+                /clientHome/** = anon
+                /clientOrg/** = anon
+                /clientOrgComment/** = anon
+                /clientPackage/** = anon
+                /clientSetting/** = anon
+                /clientUser/** = anon
+                /clientMenu/** = anon
+                /clientMaintenance/** = anon
+                /clientAccountRecord/** = anon
+                /clientGoods/** = anon
+                /clientGoodsOrder/** = anon
+                /clientIntegralRecord/** = anon
+                /clientPhone/** = anon
+                /clientRenewal/** = anon
+                /clientShopComment/** = anon
+                /clientUserShopComment/** =anon
+                /clientShop/** = anon
+                /clientUserGoods/** = anon
+                /userGoodsOrder/** = anon
+                /clientUserShop/** = anon
+                /clientShopHome/** = anon
+
+                /** = user,sysUser
+
+                <!--/** = kickout,user,sysUser-->
+            </value>
+        </property>
+    </bean>
+
+    <!-- Shiro生命周期处理器-->
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+</beans>

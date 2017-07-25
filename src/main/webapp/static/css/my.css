@@ -1,0 +1,61 @@
+@CHARSET "UTF-8";
+body,td,th {
+	font-size: 13px;
+    }
+	
+	.myfooter{
+		height:80px;
+	}
+	
+	.navbar-inner {
+		 background-color: #0000EE;
+	}
+	
+	.mycolor4nav{  
+          color:#FFF;
+     }  
+	
+	.twoLine {
+		width:150px;  
+	    overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis; 
+	}  
+	/*.bookimg {*/
+		/*max-width:100px;*/
+		/*width:100px;*/
+		/*width:expression(document.body.clientWidth>100?"100px":"auto");*/
+		/*overflow:hidden;*/
+		/**/
+		/*} */
+	
+	.text-overflow {
+		position:relative;
+		line-height:1.4em;
+		/* 3 times the line-height to show 3 lines */
+		height:1.4em;
+		width: 30%;
+		overflow:hidden;
+		font-size:13px;
+	}
+
+	.text-overflow::after {
+		content:"...";
+		font-weight:bold;
+		position:absolute;
+		bottom:0;
+		right:0;
+		padding:0 20px 1px 45px;
+		background:url(http://css88.b0.upaiyun.com/css88/2014/09/ellipsis_bg.png) repeat-y;
+	}
+	
+	
+	#mymain {
+		min-height:100%;
+		margin-bottom:80px;/*向上缩减80像素，不至于footer超出屏幕可视范围*/
+		}
+	
+	.navbar-inner {
+		  background-color:#436EEE;
+    }
+

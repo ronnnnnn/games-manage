@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.zyark.dao.SysRoleHasSysResourceMapper" >
+  <resultMap id="BaseResultMap" type="com.zyark.domain.SysRoleHasSysResourceKey" >
+    <id column="sys_role_id" property="sysRoleId" jdbcType="BIGINT" />
+    <id column="sys_resource_id" property="sysResourceId" jdbcType="BIGINT" />
+  </resultMap>
+
+</mapper>
